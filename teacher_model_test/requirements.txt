@@ -1,0 +1,11 @@
+# 最小依赖列表
+# 只包含测试Qwen2.5-32B-Instruct必需的基础库
+
+torch>=2.0.0
+transformers>=4.40.0
+datasets>=2.0.0
+tqdm>=4.60.0
+
+# 可选：如果需要更好的性能
+# accelerate>=0.20.0  # 用于device_map="auto"
+

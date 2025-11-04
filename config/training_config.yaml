@@ -1,0 +1,125 @@
+# 训练配置文件
+# 适用于VAST AI GPU环境 - H200 140GB版本
+
+# 模型配置 - 280GB显存优化配置（充分利用2×140GB H200）
+model:
+  teacher_model_name: "Qwen/Qwen2.5-32B-Instruct"
+  student_model_name: "Qwen/Qwen2.5-7B-Instruct"
+  cache_size: 500  # 💡 已禁用：命中率0%无效，代码中设置use_cache=False
+  cache_policy: "LRU"
+  use_lora: true
+
+# LoRA配置
+lora:
+  r: 8                     # 降低秩以减少参数数量
+  lora_alpha: 16           # 保持alpha/r=2的比例
+  target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+  lora_dropout: 0.1        # 保持dropout防止过拟合
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+# 监督微调配置
+sft:
+  output_dir: "./checkpoints/sft_model"
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  num_train_epochs: 3
+  learning_rate: 2e-5
+  save_strategy: "epoch"
+  eval_strategy: "epoch"  # 使用新的参数名，避免弃用警告
+  logging_steps: 100
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  max_length: 512
+  warmup_steps: 100
+
+# PPO配置 - 280GB显存优化配置（充分利用H200 140GB，大幅提升训练效果）
+ppo:
+  output_dir: "./checkpoints/rl_model"
+  learning_rate: 1e-5
+  batch_size: 2  # 🔥 紧急降低：从4降到2避免OOM
+  mini_batch_size: 1  # 🔥 紧急降低：从2降到1
+  forward_batch_size: 1  # ✅ 保守配置：降到1，log_softmax峰值内存减半
+  ppo_epochs: 2  # 🔥 紧急降低：从3降到2减少重复计算
+  clip_ratio: 0.2
+  value_loss_coef: 0.1
+  entropy_coef: 0.01
+  kl_coef: 0.05
+  gamma: 0.99
+  lambda_gae: 0.95
+  max_grad_norm: 1.0
+  max_length: 256  # 🔥 紧急降低：从384降到256减少序列长度
+  temperature: 0.7
+  do_sample: true
+  gradient_checkpointing: true  # ✅ 建议启用：H200虽充足，但可以进一步优化显存使用
+
+# 奖励配置
+reward:
+  lambda_intrinsic: 0.7  # 内在奖励权重
+  lambda_correctness: 0.3  # 答案正确性权重
+  temperature: 1.0  # 内在奖励温度参数
+  normalization: "mean_std"  # 归一化方法
+  clip_min: -5.0  # 奖励裁剪最小值
+  clip_max: 5.0  # 奖励裁剪最大值
+  update_rate: 0.01  # 内在奖励统计更新率
+  # 自适应权重配置
+  use_adaptive_weights: true  # 启用自适应权重
+  adaptation_rate: 0.01  # 权重适应率
+  reasoning_weight: 0.0  # 推理过程权重
+  format_weight: 0.0  # 格式约束权重
+
+# 数据配置
+data:
+  dataset_name: "gsm8k"
+  dataset_config: "main"
+  max_train_samples: null  # null表示使用全部数据
+  max_eval_samples: null 
+  train_split: "train"
+  eval_split: "test"
+
+# 训练配置 - 2×H200 140GB优化配置
+training:
+  max_steps: 1000
+  save_steps: 50  # 🚀 H200显存充足，可以更频繁保存
+  eval_steps: 100  # 🚀 H200显存充足，可以更频繁评估
+  logging_steps: 10
+  gradient_accumulation_steps: 16  # 🔥 调整：batch_size=2时用16，保持有效batch_size=32
+  fp16: false  # 禁用FP16避免梯度不稳定
+  bf16: true   # 使用BF16替代FP16，更稳定
+  dataloader_num_workers: 4  # 🚀 H200性能强劲，可以充分利用多线程
+  remove_unused_columns: false
+
+# 评估配置
+evaluation:
+  eval_batch_size: 8
+  max_eval_samples: null  # null表示使用全部测试集数据
+  metrics: ["accuracy", "step_coverage", "logical_consistency", "kl_divergence"]
+  save_predictions: true
+
+# 设备配置
+device:
+  use_cuda: true
+  device_map: "auto"
+  torch_dtype: "bfloat16"  # 使用bfloat16替代float16
+  use_mixed_precision: false  # 禁用混合精度避免FP16问题
+
+# 并行处理配置
+parallel:
+  enabled: false  # 是否启用并行处理（已禁用，使用单线程避免tokenizer线程安全问题）
+  num_workers: 1  # 并行工作进程/线程数
+  use_threads: true  # 是否使用线程池（True）还是进程池（False）
+  inference_batch_size: 16  # 并行推理批次大小
+  cache_queue_size: 1000  # 异步缓存队列大小
+  use_parallel_data_loader: false  # 是否使用并行数据加载器（已禁用）
+  data_loader_workers: 1  # 数据加载器工作进程数
+
+# 日志配置
+logging:
+  log_level: "INFO"
+  use_wandb: true
+  wandb_project: "intrinsic-reward-distillation"
+  use_tensorboard: true
+  tensorboard_log_dir: "./logs"
+

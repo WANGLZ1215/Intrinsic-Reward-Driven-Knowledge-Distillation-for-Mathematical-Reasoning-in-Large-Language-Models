@@ -1,0 +1,29 @@
+# 核心依赖 - 固定兼容版本
+torch==2.3.1
+torchvision==0.18.1  # 兼容torch 2.3.1
+torchaudio==2.3.1    # 兼容torch 2.3.1
+transformers>=4.43.3,<5.0.0  # 升级到最新稳定版本，修复CUDA兼容性问题
+datasets==2.20.0
+accelerate==0.33.0
+peft==0.11.1
+trl==0.9.4
+
+# 数据处理
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.1
+
+# 可视化和监控
+tensorboard==2.17.0
+wandb==0.17.5
+
+# 数学和科学计算（项目实际使用）
+sympy==1.12
+regex==2024.7.24
+
+# 工具库
+tqdm==4.66.4
+pyyaml==6.0.2
+jsonlines==3.1.0
+
+
